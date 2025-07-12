@@ -1,0 +1,7 @@
+# Archivo de configuración para la aplicación de votación
+database_host: "localhost"
+database_user: "postgres"
+database_password: "postgres"
+database_name: "votes"
+redis_host: "localhost"
+app_port: 3001

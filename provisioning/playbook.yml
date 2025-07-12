@@ -1,0 +1,13 @@
+---
+- hosts: all
+  become: true
+
+  vars_files:
+    - config.yml
+
+  roles:
+    - common
+    - postgresql
+    - nodejs
+    - redis
+    - app

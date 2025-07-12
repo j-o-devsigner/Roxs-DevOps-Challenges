@@ -1,0 +1,14 @@
+---
+- name: Actualizar el cache de paquetes apt
+  apt:
+    update_cache: yes
+
+- name: Instalar software base
+  apt:
+    name:
+      - git # La herramienta para descargar el código del proyecto desde GitHub.
+      - python3-pip # El instalador de librerías para nuestra aplicación de Python.
+      - curl # Un mensajero para traer archivos de internet, como el instalador de Node.js.
+      - ca-certificates # El "verificador de identidades" para que el sistema confíe en los sitios web seguros (HTTPS).
+      - gnupg # El "verificador de sellos" para asegurar que el software que instalamos es auténtico.
+    state: present

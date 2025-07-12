@@ -1,0 +1,29 @@
+---
+- name: Asegurar que el directorio de destino existe y pertenece a vagrant
+  file:
+    path: /home/vagrant/roxs-devops-project90
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: '0755' # chmod 755 para el directorio
+
+- name: Clonar el repositorio de la aplicación como el usuario vagrant
+  git:
+    repo: 'https://github.com/roxsross/roxs-devops-project90.git'
+    dest: /home/vagrant/roxs-devops-project90
+    clone: yes
+    update: yes
+  become: true
+  become_user: vagrant
+
+- name: Configurar variables de entorno permanentes para la aplicación
+  blockinfile:
+    path: /etc/profile.d/app_env.sh
+    create: yes
+    block: |
+      export DATABASE_HOST='{{ database_host }}'
+      export DATABASE_USER='{{ database_user }}'
+      export DATABASE_PASSWORD='{{ database_password }}'
+      export DATABASE_NAME='{{ database_name }}'
+      export REDIS_HOST='{{ redis_host }}'
+      export APP_PORT='{{ app_port }}'

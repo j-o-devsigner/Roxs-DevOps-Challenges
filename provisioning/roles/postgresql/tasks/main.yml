@@ -1,0 +1,26 @@
+---
+- name: Instalar servidor PostgreSQL
+  apt:
+    name: postgresql
+    state: present
+
+- name: Instalar conector de Python para PostgreSQL
+  pip:
+    name: psycopg2-binary
+  become: true
+
+- name: Asegurarse de que el servicio de PostgreSQL esté iniciado
+  service:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Establecer la contraseña para el usuario 'postgres'
+  shell: "sudo -u postgres psql -c \"ALTER USER postgres WITH PASSWORD 'postgres';\""
+  ignore_errors: true
+  changed_when: false
+
+- name: Crear la base de datos 'votes' si no existe
+  shell: "sudo -u postgres psql -c \"CREATE DATABASE votes;\""
+  ignore_errors: true
+  changed_when: false

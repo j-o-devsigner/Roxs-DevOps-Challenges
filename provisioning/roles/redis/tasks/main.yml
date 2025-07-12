@@ -1,0 +1,5 @@
+---
+- name: Instalar servidor Redis
+  apt:
+    name: redis-server
+    state: present
