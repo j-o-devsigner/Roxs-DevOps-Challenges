@@ -231,8 +231,18 @@ La documentación también nos provee la dirección donde es persistente la data
 
 El volumen solo requiere el nombre del volumen y la dirección, puedes ver un ejemplo práctico con postgresql [aquí](https://dev.to/iamrj846/how-to-persist-data-in-a-dockerized-postgres-database-using-volumes-15f0)
 
+primero debemos crear el volumen al final del docker-compose
+
 ```yml
-# Puede llamarse como quieras ejm:
+volumes:
+  mi-data-persistente:
+    driver: local
+```
+
+luego lo podemos utilizar como volumen en los servicios
+
+```yml
+# Nombre que definiste como volumen en tu docker-compose:
 - mi-data-persistente:/var/lib/postgresql/data
 ```
 
