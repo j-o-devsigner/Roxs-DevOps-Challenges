@@ -5,3 +5,4 @@
 ## Página del reto: [90 Días de DevOps con Roxs](https://90daysdevops.295devops.com/)
 
 ### **Semana 01**: [Automatización con Vagrant y Ansible](./docs/01-automatizacion-con-vagrant-y-ansible/README.md)
+### **Semana 02**: [Docker y Compose](./docs/02-docker-y-compose/README.md)
