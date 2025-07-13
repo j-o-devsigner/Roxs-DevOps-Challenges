@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 
 # Vagrant provisioning files
 provisioning/config.yml
+
+# Ignorar archivos de configuración de entorno
+*.env
