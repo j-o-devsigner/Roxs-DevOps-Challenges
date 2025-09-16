@@ -1,0 +1,108 @@
+name: CI - Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      vote: ${{ steps.filter.outputs.vote }}
+      result: ${{ steps.filter.outputs.result }}
+      worker: ${{ steps.filter.outputs.worker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            vote:
+              - 'app/vote/**'
+            result:
+              - 'app/result/**'
+            worker:
+              - 'app/worker/**'
+
+  build-vote:
+    name: Build Vote App
+    needs: detect-changes
+    if: needs.detect-changes.outputs.vote == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Determine Docker tag
+        id: docker_meta
+        run: |
+          if [ "${{ github.ref_name }}" == "master" ]; then echo "tag=prod" >> $GITHUB_OUTPUT; else echo "tag=staging" >> $GITHUB_OUTPUT; fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push vote app
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app/vote
+          push: true
+          tags: johndevsigner/roxs-voting-app-vote:${{ steps.docker_meta.outputs.tag }}
+
+  build-result:
+    name: Build Result App
+    needs: detect-changes
+    if: needs.detect-changes.outputs.result == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Determine Docker tag
+        id: docker_meta
+        run: |
+          if [ "${{ github.ref_name }}" == "master" ]; then echo "tag=prod" >> $GITHUB_OUTPUT; else echo "tag=staging" >> $GITHUB_OUTPUT; fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push result app
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app/result
+          push: true
+          tags: johndevsigner/roxs-voting-app-result:${{ steps.docker_meta.outputs.tag }}
+
+  build-worker:
+    name: Build Worker App
+    needs: detect-changes
+    if: needs.detect-changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Determine Docker tag
+        id: docker_meta
+        run: |
+          if [ "${{ github.ref_name }}" == "master" ]; then echo "tag=prod" >> $GITHUB_OUTPUT; else echo "tag=staging" >> $GITHUB_OUTPUT; fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push worker app
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app/worker
+          push: true
+          tags: johndevsigner/roxs-voting-app-worker:${{ steps.docker_meta.outputs.tag }}

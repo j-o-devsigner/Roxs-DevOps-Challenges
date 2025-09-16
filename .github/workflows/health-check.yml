@@ -1,0 +1,42 @@
+name: Continuous Health Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-production-health:
+    name: Check Production Health
+    runs-on: [self-hosted, production]
+
+    steps:
+      - name: Check Healthz Endpoint
+        id: health_check_step
+        run: curl --fail --silent --show-error http://localhost:80/healthz
+
+      - name: Determine notification status and message
+        id: status_info
+        if: always() # Asegura que este paso se ejecute incluso si el anterior falló
+        run: |
+          if [[ "${{ steps.health_check_step.outcome }}" == "success" ]]; then
+            echo "COLOR=good" >> $GITHUB_OUTPUT
+            echo "MESSAGE=✅ Health Check Exitoso: El servicio de producción está saludable." >> $GITHUB_OUTPUT
+          else
+            echo "COLOR=danger" >> $GITHUB_OUTPUT
+            echo "MESSAGE=🚨 ¡ALERTA! Servicio de Producción Caído: El endpoint de salud no está respondiendo." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status_info.outputs.MESSAGE }}",
+              "attachments": [{
+                "color": "${{ steps.status_info.outputs.COLOR }}"
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_ALERTS }}

@@ -1,0 +1,32 @@
+services:
+  vote:
+    image: johndevsigner/roxs-voting-app-vote:prod
+    container_name: vote-prod
+    restart: always
+
+  result:
+    image: johndevsigner/roxs-voting-app-result:prod
+    container_name: result-prod
+    restart: always
+
+  worker:
+    image: johndevsigner/roxs-voting-app-worker:prod
+    container_name: worker-prod
+    restart: always
+
+  redis:
+    container_name: redis-prod
+    restart: always
+
+  postgres:
+    container_name: postgres-prod
+    volumes:
+      - db-data-prod:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  db-data-prod:
+
+networks:
+  voting_app_network:
+    name: voting_app_network_prod

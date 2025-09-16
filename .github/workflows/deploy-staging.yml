@@ -1,0 +1,60 @@
+name: CD - Deploy to Staging
+
+on:
+  workflow_run:
+    workflows: ["CI - Build and Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - develop
+
+jobs:
+  deploy-to-staging:
+    name: Deploy to Staging Environment
+    runs-on: [self-hosted, staging]
+    environment: staging
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create .env files from staging secrets
+        run: |
+          echo "📄 Creando .env en root..."
+          echo "DATABASE_HOST=${{ secrets.DATABASE_HOST }}" > .env
+          echo "DATABASE_USER=${{ secrets.DATABASE_USER }}" >> .env
+          echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
+          echo "DATABASE_NAME=${{ secrets.DATABASE_NAME }}" >> .env
+          
+          echo "📄 Creando postgres.env..."
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > postgres.env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> postgres.env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> postgres.env
+          
+          echo "📄 Creando app/vote/.env.local..."
+          echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> app/vote/.env.local
+
+      - name: Deploy services to Staging
+        run: |
+          set -euo pipefail
+          FILES="-f docker-compose.yml -f docker-compose.staging.yml -f docker-compose.vagrant.yml"
+
+          echo "🛎️ Actualizando las imágenes..."
+          # 1. Un único pull para todos los servicios.
+          docker compose $FILES pull
+
+          echo "🚀 Desplegando la nueva versión..."
+          # 2. Un único 'up' que reconcilia todo el estado.
+          # Docker Compose es inteligente: solo recreará los contenedores
+          # cuyas imágenes fueron actualizadas en el paso anterior.
+          docker compose $FILES up -d --remove-orphans
+
+          echo "📊 Estado final:"
+          docker compose $FILES ps

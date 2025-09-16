@@ -1,0 +1,73 @@
+name: PR Quality Check
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  test-vote:
+    name: Test Vote Service (Python)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Python dependencies
+        run: pip install -r app/vote/requirements.txt
+
+      - name: Run Pytest
+        run: |
+          export PYTHONPATH=$PYTHONPATH:./app/vote
+          pytest app/vote/tests/ -v
+
+  test-result:
+    name: Test Result Service (Node.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app/result
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Run Node.js tests
+        run: npm test
+
+  test-worker:
+    name: Test Worker Service (Node.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app/worker
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Run Node.js tests
+        run: npm test

@@ -1,0 +1,123 @@
+name: CD - Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión o motivo del despliegue"
+        required: true
+        default: "Nuevo despliegue a producción"
+
+jobs:
+  deploy-to-prod:
+    name: Deploy to Production Environment
+    runs-on: [self-hosted, production]
+    environment: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Backup PostgreSQL Database
+        run: |
+          echo "🛡️ Realizando backup de la base de datos de producción..."
+          BACKUP_FILENAME="backup-prod-$(date +%Y-%m-%d-%H%M%S).dump"
+          
+          # 1. Ejecuta pg_dump DENTRO del contenedor de postgres
+          # La contraseña se pasa de forma segura como variable de entorno al comando
+          docker exec \
+            -e PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} \
+            postgres-prod \
+            pg_dump \
+              -h localhost \
+              -U ${{ secrets.DATABASE_USER }} \
+              -d ${{ secrets.DATABASE_NAME }} \
+              -F c -b -v -f "/tmp/${BACKUP_FILENAME}"
+
+          # 2. Copia el archivo de backup desde el contenedor al runner
+          docker cp "postgres-prod:/tmp/${BACKUP_FILENAME}" .
+
+          echo "✅ Backup completado y copiado al runner."
+
+
+      - name: Upload Backup as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-db-backup-${{ github.run_id }}
+          path: "*.dump"
+          retention-days: 7
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create .env files from production secrets
+        run: |
+          echo "📄 Creando .env para producción..."
+          echo "DATABASE_HOST=${{ secrets.DATABASE_HOST }}" > .env
+          echo "DATABASE_USER=${{ secrets.DATABASE_USER }}" >> .env
+          echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
+          echo "DATABASE_NAME=${{ secrets.DATABASE_NAME }}" >> .env
+
+          # ... y cualquier otra variable que necesites ...
+          
+          echo "📄 Creando postgres.env para producción..."
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > postgres.env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> postgres.env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> postgres.env
+
+          echo "📄 Creando app/vote/.env.local..."
+          echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> app/vote/.env.local
+
+      - name: Deploy services to Production
+        run: |
+          set -euo pipefail
+          FILES="-f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.vagrant.yml"
+          docker compose $FILES pull
+          docker compose $FILES up -d --remove-orphans
+          docker compose $FILES ps
+
+
+  notify-deployment-status:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: deploy-to-prod
+    if: always() # Mantenemos esto: el job siempre se ejecuta
+
+    steps:
+      - name: Determine notification status and message
+        id: status_info
+        run: |
+          if [[ "${{ needs.deploy-to-prod.result }}" == "success" ]]; then
+            echo "COLOR=good" >> $GITHUB_OUTPUT
+            echo "MESSAGE=✅ El despliegue de la versión '${{ github.event.inputs.version }}' se ha completado con éxito." >> $GITHUB_OUTPUT
+          else
+            echo "COLOR=danger" >> $GITHUB_OUTPUT
+            echo "MESSAGE=❌ Atención: El despliegue de la versión '${{ github.event.inputs.version }}' ha finalizado con estado: *${{ needs.deploy-to-prod.result }}*." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status_info.outputs.MESSAGE }}",
+              "attachments": [{
+                "color": "${{ steps.status_info.outputs.COLOR }}",
+                "blocks": [
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "Revisar logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

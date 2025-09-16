@@ -1,0 +1,47 @@
+services:
+  vote:
+    image: johndevsigner/roxs-voting-app-vote:staging
+    container_name: vote-staging
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  result:
+    image: johndevsigner/roxs-voting-app-result:staging
+    container_name: result-staging
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: johndevsigner/roxs-voting-app-worker:staging
+    container_name: worker-staging
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-staging
+    restart: always
+
+  postgres:
+    image: postgres:16.1-alpine
+    container_name: postgres-staging
+    volumes:
+      - db-data-staging:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  db-data-staging:
+
+networks:
+  voting_app_network:
+    name: voting_app_network_staging

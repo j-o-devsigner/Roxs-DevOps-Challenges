@@ -1,0 +1,7 @@
+services:
+  vote:
+    ports:
+      - "0.0.0.0:80:80"
+  result:
+    ports:
+      - "0.0.0.0:3000:3000"

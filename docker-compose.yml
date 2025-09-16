@@ -1,12 +1,10 @@
 name: roxs-voting-app
 
 services:
-  # Servicio de Voto (Frontend)
   vote:
     container_name: vote
     build: ./app/vote
-    ports:
-      - "127.0.0.1:80:80"
+    image: johndevsigner/roxs-voting-app-vote
     env_file:
       - ./.env
       - ./app/vote/.env.local
@@ -23,15 +21,12 @@ services:
       timeout: 10s
       retries: 5
 
-  # Servicio de Resultados (Web)
   result:
     container_name: result
     build: ./app/result
-    ports:
-      - "127.0.0.1:3000:3000"
+    image: johndevsigner/roxs-voting-app-result
     env_file:
       - ./.env
-      - ./app/result/.env.local
     networks:
       - voting_app_network
     depends_on:
@@ -43,10 +38,10 @@ services:
       timeout: 10s
       retries: 5
 
-  # Servicio Worker (Procesador de fondo)
   worker:
     container_name: worker
     build: ./app/worker
+    image: johndevsigner/roxs-voting-app-worker
     env_file:
       - ./.env
     networks:
@@ -56,13 +51,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  # Servicio de Redis (Cola de mensajes)
   redis:
     container_name: redis_cache
     image: redis:7.2-alpine
@@ -74,27 +63,28 @@ services:
       timeout: 3s
       retries: 30
 
-  # Servicio de Base de Datos PostgreSQL
   postgres:
-    container_name: postgres_db
+    container_name: postgres
     image: postgres:16.1-alpine
-    environment:
+    env_file:
       - ./postgres.env
+    environment:
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-postgres}
     volumes:
       - db-data:/var/lib/postgresql/data
     networks:
       - voting_app_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
-# Definición de la red y el volumen
 networks:
   voting_app_network:
     driver: bridge
 
 volumes:
   db-data:
-    driver: local

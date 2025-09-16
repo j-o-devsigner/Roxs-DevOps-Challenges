@@ -1,0 +1,27 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Configuración base para los runners
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = "1"
+  end
+
+  # --- VM para el Runner de Staging ---
+  config.vm.define "staging-runner" do |staging|
+    staging.vm.network "forwarded_port", guest: 80, host: 7999 # Vote
+    staging.vm.network "forwarded_port", guest: 3000, host: 8000 # Worker
+    staging.vm.network "forwarded_port", guest: 3001, host: 8001 # Result
+    staging.vm.hostname = "staging-runner"
+  end
+
+  # --- VM para el Runner de Producción ---
+  config.vm.define "prod-runner" do |prod|
+    prod.vm.network "forwarded_port", guest: 80, host: 6999 # Vote
+    prod.vm.network "forwarded_port", guest: 3000, host: 7000 # Worker
+    prod.vm.network "forwarded_port", guest: 3001, host: 7001 # Result
+    prod.vm.hostname = "prod-runner"
+  end
+end
