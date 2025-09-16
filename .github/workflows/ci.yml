@@ -12,12 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       vote: ${{ steps.filter.outputs.vote }}
+      vote_force_build: ${{ steps.check_vote_image.outputs.force_build }}
       result: ${{ steps.filter.outputs.result }}
+      result_force_build: ${{ steps.check_result_image.outputs.force_build }}
       worker: ${{ steps.filter.outputs.worker }}
+      worker_force_build: ${{ steps.check_worker_image.outputs.force_build }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -29,10 +33,40 @@ jobs:
             worker:
               - 'app/worker/**'
 
+      - id: check_vote_image
+        run: |
+          TAG=$(if [ "${GITHUB_REF_NAME}" == "master" ]; then echo "prod"; else echo "staging"; fi)
+          REST=$(curl -s -o /dev/null -w "%{http_code}" "https://hub.docker.com/v2/repositories/johndevsigner/roxs-voting-app-vote/tags/$TAG")
+          if [ "$REST" -ne 200 ]; then
+            echo "force_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "force_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - id: check_result_image
+        run: |
+          TAG=$(if [ "${GITHUB_REF_NAME}" == "master" ]; then echo "prod"; else echo "staging"; fi)
+          REST=$(curl -s -o /dev/null -w "%{http_code}" "https://hub.docker.com/v2/repositories/johndevsigner/roxs-voting-app-result/tags/$TAG")
+          if [ "$REST" -ne 200 ]; then
+            echo "force_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "force_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - id: check_worker_image
+        run: |
+          TAG=$(if [ "${GITHUB_REF_NAME}" == "master" ]; then echo "prod"; else echo "staging"; fi)
+          REST=$(curl -s -o /dev/null -w "%{http_code}" "https://hub.docker.com/v2/repositories/johndevsigner/roxs-voting-app-worker/tags/$TAG")
+          if [ "$REST" -ne 200 ]; then
+            echo "force_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "force_build=false" >> $GITHUB_OUTPUT
+          fi
+
   build-vote:
     name: Build Vote App
     needs: detect-changes
-    if: needs.detect-changes.outputs.vote == 'true'
+    if: needs.detect-changes.outputs.vote == 'true' || needs.detect-changes.outputs.vote_force_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -58,7 +92,7 @@ jobs:
   build-result:
     name: Build Result App
     needs: detect-changes
-    if: needs.detect-changes.outputs.result == 'true'
+    if: needs.detect-changes.outputs.result == 'true' || needs.detect-changes.outputs.result_force_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -84,7 +118,7 @@ jobs:
   build-worker:
     name: Build Worker App
     needs: detect-changes
-    if: needs.detect-changes.outputs.worker == 'true'
+    if: needs.detect-changes.outputs.worker == 'true' || needs.detect-changes.outputs.worker_force_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
