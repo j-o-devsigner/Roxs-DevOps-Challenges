@@ -498,4 +498,43 @@ La sección de **Repository Secrets** debe quedar con los siguientes tokens
 
 Ahora tenemos todo listo para correr nuestros pipelines y un flujo claro
 
+## 8. Flujo final y solución
 
+Hagamos un repaso de cómo quedó nuestro flujo y viendo cómo vamos superando todo el reto
+
+1. 👨‍💻 Developer hace push a 'develop'
+
+Vamos a simular el push con un **Pull Request** ya que no es óptimo hacer el push directamente a la rama sin saber qué se va a subir
+
+
+
+2. 🔄 GitHub Actions ejecuta CI
+   - Tests de vote (Python)
+   - Tests de result (Node.js) 
+   - Tests de worker (Node.js)
+   - Integration tests con Docker Compose
+
+
+3. 🏗️ Build de imágenes Docker
+   - vote:latest
+   - result:latest
+   - worker:latest
+   ↓
+4. 🚀 Auto-deploy a Staging
+   - Self-hosted runner ejecuta deployment
+   - Health checks verifican que funciona
+   - Smoke tests confirman funcionalidad
+   ↓
+5. 👨‍💻 Developer hace PR a 'main'
+   ↓
+6. 👀 Code review y merge
+   ↓
+7. 🎯 Deploy a Production (con approval manual)
+   - Backup de base de datos
+   - Self-hosted runner ejecuta deployment
+   - Health checks verifican que funciona
+   - Notificación de deployment exitoso
+   ↓
+8. 📊 Monitoreo continuo
+   - Health checks cada 30 minutos
+   - Alertas automáticas si algo falla
