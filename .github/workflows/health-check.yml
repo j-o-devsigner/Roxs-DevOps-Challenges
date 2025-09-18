@@ -17,7 +17,7 @@ jobs:
 
       - name: Determine notification status and message
         id: status_info
-        if: always() # Asegura que este paso se ejecute incluso si el anterior falló
+        if: always()
         run: |
           if [[ "${{ steps.health_check_step.outcome }}" == "success" ]]; then
             echo "COLOR=good" >> $GITHUB_OUTPUT

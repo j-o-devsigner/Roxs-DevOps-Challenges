@@ -497,3 +497,5 @@ La sección de **Repository Secrets** debe quedar con los siguientes tokens
 ![Repository Tokens](./assets/repository_tokens.webp)
 
 Ahora tenemos todo listo para correr nuestros pipelines y un flujo claro
+
+
