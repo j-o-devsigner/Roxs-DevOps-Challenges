@@ -21,23 +21,22 @@ jobs:
       - name: Backup PostgreSQL Database
         run: |
           echo "🛡️ Realizando backup de la base de datos de producción..."
-          BACKUP_FILENAME="backup-prod-$(date +%Y-%m-%d-%H%M%S).dump"
-          
-          # 1. Ejecuta pg_dump DENTRO del contenedor de postgres
-          # La contraseña se pasa de forma segura como variable de entorno al comando
-          docker exec \
-            -e PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} \
-            postgres-prod \
-            pg_dump \
-              -h localhost \
-              -U ${{ secrets.DATABASE_USER }} \
-              -d ${{ secrets.DATABASE_NAME }} \
-              -F c -b -v -f "/tmp/${BACKUP_FILENAME}"
+          if docker ps --format '{{.Names}}' | grep -q '^postgres-prod$'; then
+            BACKUP_FILENAME="backup-prod-$(date +%Y-%m-%d-%H%M%S).dump"
+            docker exec \
+              -e PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} \
+              postgres-prod \
+              pg_dump \
+                -h localhost \
+                -U ${{ secrets.DATABASE_USER }} \
+                -d ${{ secrets.DATABASE_NAME }} \
+                -F c -b -v -f "/tmp/${BACKUP_FILENAME}"
+            docker cp "postgres-prod:/tmp/${BACKUP_FILENAME}" .
+            echo "✅ Backup completado y copiado al runner."
+          else
+            echo "⚠️ No existe contenedor 'postgres-prod'. Salta backup para primer despliegue."
+          fi
 
-          # 2. Copia el archivo de backup desde el contenedor al runner
-          docker cp "postgres-prod:/tmp/${BACKUP_FILENAME}" .
-
-          echo "✅ Backup completado y copiado al runner."
 
 
       - name: Upload Backup as Artifact

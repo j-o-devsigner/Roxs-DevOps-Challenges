@@ -498,4 +498,84 @@ La sección de **Repository Secrets** debe quedar con los siguientes tokens
 
 Ahora tenemos todo listo para correr nuestros pipelines y un flujo claro
 
+## 8. Flujo final y solución
 
+Hagamos un repaso de cómo quedó nuestro flujo y viendo cómo vamos superando todo el reto
+
+1. 👨‍💻 Developer hace push a 'develop'
+
+2. 🔄 GitHub Actions ejecuta CI
+   - Tests de vote (Python)
+   - Tests de result (Node.js) 
+   - Tests de worker (Node.js)
+   - Integration tests con Docker Compose
+
+Vamos a simular el push con un **Pull Request** ya que no es óptimo hacer el push directamente a la rama sin saber qué se va a subir
+
+![Pull Request to develop](./assets/pull_request_to_develop.png)
+
+Ahora antes de aprobar los cambios tenemos el check del testing, una vez aprobado podemos seguir con el paso
+
+3. 🏗️ Build de imágenes Docker
+   - vote:latest
+   - result:latest
+   - worker:latest
+
+En este ejercicio manejamos dos ramas principales **master y develop**, todo el ejercicio está hecho para tener dos ambientes homogeneos, uno de producción que es lo que un usuario final va a ver y un ambiente para pruebas que es donde el equipo de desarrollo realiza cambios y agrega nuevas funcionalidades y solo es accesible por el equipo correspondiente, así que en nuestro proceso la rama **master** va a ser nuestra rama de producción y la rama **develop** va a ser nuestra rama de pruebas, así que cuando pasemos entre ambas ramas vamos a crear las imágenes de docker con su respectivo tag **prod y staging**
+
+![Tags Docker](./assets/tags_docker.png)
+
+4. 🚀 Auto-deploy a Staging
+   - Self-hosted runner ejecuta deployment
+   - Health checks verifican que funciona
+   - Smoke tests confirman funcionalidad
+
+Para este punto los health checks que tenemos en ambiente **staging** son por parte de **docker compsoe** que fueron implementados en el anterior challenge
+
+![deploy staging](./assets/deploy_staging.png)
+
+Luego para un smoke test podemos revisar lo desplegado por medio de los puertos que redirigimos a nuestra maquina por medio de Vagrant y asignamos para el ambiente correspondiente
+
+![ambiente staging](./assets/ambiente_staging.png)
+
+5. 👨‍💻 Developer hace PR a 'main'
+
+6. 👀 Code review y merge
+
+7. 🎯 Deploy a Production (con approval manual)
+   - Backup de base de datos
+   - Self-hosted runner ejecuta deployment
+   - Health checks verifican que funciona
+   - Notificación de deployment exitoso
+
+Para tener un approval manual necesitamos una versión paga de GitHub, pero podemos acercarnos utilizando
+
+```
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión o motivo del despliegue"
+        required: true
+        default: "Nuevo despliegue a producción"
+```
+
+que funcionará como un disparador manual y vamos a escribir el motivo de despliegue
+
+![paso prod manual](./assets/paso_prod_manual.png)
+
+Y en caso de que falle o funcione todo vamos a recibir la notificación en nuestro canal de slack según corresponda **(Solo ambiente producción - master)**
+
+![notificacion deployment](./assets/notificacion_deployments.png)
+
+Para el backup de base de datos tenemos la condición de que si no existe la imagen de postgres continue el flujo CI/CD, pero en caso de que haya una base de datos para hacer backup quedará de la siguiente manera
+
+8. 📊 Monitoreo continuo
+   - Health checks cada 30 minutos
+   - Alertas automáticas si algo falla
+
+## Pruebas en distintos ambientes
+
+Ahora con todo el flujo montado, vamos a ver nuestra aplicación en distintos puertos [puedes ver aquí](#2-definiendo-vagrantfile)
+
+Ahora probemos con un cambio en la UI de un componente para ver cómo se comportan ambos ambientes
