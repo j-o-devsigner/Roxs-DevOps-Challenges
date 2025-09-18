@@ -225,10 +225,6 @@ Así mismo debes repetir con el runner de prod, al final se debe ver de la sigui
 
 Con eso ya tenemos la primera parte del reto completa, ya tenemos en dónde correr nuestros pipelines y sabemos en qué puertos ver la aplicación en nuestras maquinas
 
-## Preparar docker-compose para el despliegue
-
-Docker puede funcionar por capas, vamos a ver el concepto de override en docker
-
 ### Planteando los pipelines
 
 Ya con un flujo de docker compose definido y claro ahora lo que necesitamos es empatar todo para que funcione, la parte más sencilla es que el funcionamiento de todos los pipelines serán en Self-hosted runners, para la definición de tareas tenemos de acuerdo al reto:
@@ -512,7 +508,7 @@ Hagamos un repaso de cómo quedó nuestro flujo y viendo cómo vamos superando t
 
 Vamos a simular el push con un **Pull Request** ya que no es óptimo hacer el push directamente a la rama sin saber qué se va a subir
 
-![Pull Request to develop](./assets/pull_request_to_develop.png)
+![Pull Request to develop](./assets/pull_request_to_develop.webp)
 
 Ahora antes de aprobar los cambios tenemos el check del testing, una vez aprobado podemos seguir con el paso
 
@@ -523,7 +519,7 @@ Ahora antes de aprobar los cambios tenemos el check del testing, una vez aprobad
 
 En este ejercicio manejamos dos ramas principales **master y develop**, todo el ejercicio está hecho para tener dos ambientes homogeneos, uno de producción que es lo que un usuario final va a ver y un ambiente para pruebas que es donde el equipo de desarrollo realiza cambios y agrega nuevas funcionalidades y solo es accesible por el equipo correspondiente, así que en nuestro proceso la rama **master** va a ser nuestra rama de producción y la rama **develop** va a ser nuestra rama de pruebas, así que cuando pasemos entre ambas ramas vamos a crear las imágenes de docker con su respectivo tag **prod y staging**
 
-![Tags Docker](./assets/tags_docker.png)
+![Tags Docker](./assets/tags_docker.webp)
 
 4. 🚀 Auto-deploy a Staging
    - Self-hosted runner ejecuta deployment
@@ -532,11 +528,11 @@ En este ejercicio manejamos dos ramas principales **master y develop**, todo el 
 
 Para este punto los health checks que tenemos en ambiente **staging** son por parte de **docker compsoe** que fueron implementados en el anterior challenge
 
-![deploy staging](./assets/deploy_staging.png)
+![deploy staging](./assets/deploy_staging.webp)
 
 Luego para un smoke test podemos revisar lo desplegado por medio de los puertos que redirigimos a nuestra maquina por medio de Vagrant y asignamos para el ambiente correspondiente
 
-![ambiente staging](./assets/ambiente_staging.png)
+![ambiente staging](./assets/ambiente_staging.webp)
 
 5. 👨‍💻 Developer hace PR a 'main'
 
@@ -562,20 +558,65 @@ on:
 
 que funcionará como un disparador manual y vamos a escribir el motivo de despliegue
 
-![paso prod manual](./assets/paso_prod_manual.png)
+![paso prod manual](./assets/paso_prod_manual.webp)
 
 Y en caso de que falle o funcione todo vamos a recibir la notificación en nuestro canal de slack según corresponda **(Solo ambiente producción - master)**
 
-![notificacion deployment](./assets/notificacion_deployments.png)
+![notificacion deployment](./assets/notificacion_deployments.webp)
 
 Para el backup de base de datos tenemos la condición de que si no existe la imagen de postgres continue el flujo CI/CD, pero en caso de que haya una base de datos para hacer backup quedará de la siguiente manera
+
+![backup db](./assets/backup_db.webp)
+
+Ahora cómo se usa este **backup**, primero que todo se debe tener instalado `postgresql-client`
+
+Puedes crear una base de datos dummy para probar
+
+```sh
+createdb -h <host> -U <usuario> -W recuperada
+
+# Con el archivo descargado de los artefactos
+pg_restore -h <host> -U <usuario> -d recuperada -v backup-prod-20250917210000.dump
+```
+
+De esta manera se puede replicar la información en una nueva base de datos de manera sencilla
+
 
 8. 📊 Monitoreo continuo
    - Health checks cada 30 minutos
    - Alertas automáticas si algo falla
 
+![health checks](./assets/health_checks.webp)
+
+Para los avisos si algo falla tenemos especificamente este health check con temporizador en nuestro workflow [health-check.yml](../../.github/workflows/health-check.yml) cada 30 minutos debe dar un aviso y especificamente este job luego de su primer ejecución debe ejecutarse de manera **programada (scheduled)**, ejemplo
+
+![health check scheduled](./assets/schedule_pipeline.webp)
+
+Aquí se ve la diferencia de correr el pipeline **manual y programada**
+
 ## Pruebas en distintos ambientes
 
 Ahora con todo el flujo montado, vamos a ver nuestra aplicación en distintos puertos [puedes ver aquí](#2-definiendo-vagrantfile)
 
-Ahora probemos con un cambio en la UI de un componente para ver cómo se comportan ambos ambientes
+Ahora probemos con un cambio en la UI de un componente para ver cómo se comportan ambos ambientes, primero que todo mandamos un cambio para ambiente desarrollo para probar un cambio futuro en nuestra aplicación
+
+![deteccion cambios](./assets/deteccion_cambios.webp)
+
+Ahora comprobamos que la construcción de imagnes solo se aplica a los módulos que fueron cambiados y los otros los deja quietos para ahorrar tiempo de ejecución
+
+Lo que notamos es lo siguiente, nuestro cambio se aplicó en el ambiente correspondiente de manera correcta
+
+![deteccion cambios](./assets/cambio_dev.webp)
+
+Y adicionalmente nuestro ambiente producción sigue intacto hasta confirmar que vamos a pasar este cambio
+
+![deteccion cambios](./assets/estado_prod.webp)
+
+Por último si confirmamos que son los cambios correctos solo queda actualizar el ambiente de producción y basta con un merge entre la rama **develop** y **master**
+
+## Archivos del ejercicio
+
+- Principalmente los workflos puedes verlos [aquí](../../.github/workflows/)
+- Archivos docker compose en el root [docker-compose.override](../../docker-compose.override.yml), [docker-compose.prod](../../docker-compose.prod.yml), [docker-compose.staging](../../docker-compose.staging.yml), [docker-compose.vagrant](../../docker-compose.vagrant.yml), [docker-compose](../../docker-compose.yml)
+- Vagrantfile para los self-hosted runners [Vagrantfile.runners](../../Vagrantfile.runners)
+- Script para provisionar los hosted runners de manera automatica [setup_selfhosted_runner](../../scripts/setup_selfhosted_runner.sh)
